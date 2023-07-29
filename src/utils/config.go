@@ -1,4 +1,4 @@
-package config
+package utils
 
 import (
 	"os"
@@ -12,6 +12,8 @@ type InstagramConfig struct {
 	Donors      []string
 	SubsPerHour int64
 	SubInterval int64
+	Condition_1 bool
+	Condition_2 bool
 }
 
 type Config struct {
@@ -27,6 +29,8 @@ func NewConfig() *Config {
 			Donors:      getEnvAsStringSlice("INSTAGRAM_DONORS", make([]string, 0)),
 			SubsPerHour: getEnvAsInt("INSTAGRAM_SUBS_PER_HOUR", 2),
 			SubInterval: getEnvAsInt("INSTAGRAM_INTERVAL", 100),
+			Condition_1: getEnvAsBool("INSTAGRAM_CONDITION_1", false),
+			Condition_2: getEnvAsBool("INSTAGRAM_CONDITION_2", false),
 		},
 		DebugMode: getEnvAsBool("DEBUGMODE", true),
 	}

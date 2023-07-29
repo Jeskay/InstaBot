@@ -2,8 +2,9 @@ package main
 
 import (
 	"errors"
-	config "instabot/src"
+	config "instabot/src/utils"
 	"log"
+	"time"
 
 	"github.com/Davincible/goinsta/v3"
 	"github.com/joho/godotenv"
@@ -56,7 +57,41 @@ func main() {
 	for _, donor := range conf.Instagram.Donors {
 		if profile, err := insta.VisitProfile(donor); err == nil {
 			user := profile.User
+			log.Println("Visiting profile - ", user.Username)
 			log.Printf("%s has %d followers, %d posts, and %d IGTV vids \n", user.Username, user.FollowerCount, user.MediaCount, user.IGTVCount)
+			donorSubs := user.Followers("")
+			for i := 0; i < donorSubs.PageSize; i++ {
+				time.Sleep(time.Duration(conf.Instagram.SubInterval) * time.Second)
+				donorSubs.Next()
+				sub := donorSubs.Users[i]
+				sub_profile, err := sub.VisitProfile()
+				if err != nil {
+					log.Println("Profile unavailable")
+					log.Println(err)
+					continue
+				}
+
+				if sub_profile.Friendship.Following {
+					log.Println("User is already followed")
+					continue
+				}
+
+				if conf.Instagram.Condition_2 && sub_profile.Friendship.FollowedBy {
+					log.Println("User is following core account")
+					continue
+				}
+
+				log.Println("Visited profile with ", sub_profile.Feed.NumResults, "posts")
+				// if err := sub.Follow(); err != nil {
+				// 	log.Println("Following profile - FAILED")
+				// 	log.Println(err)
+				// 	continue
+				// }
+				log.Println("Following profile - SUCCESS")
+
+			}
+		} else {
+			log.Println(err)
 		}
 	}
 	log.Print(insta.Account.FullName)
