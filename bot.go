@@ -1,4 +1,4 @@
-package bot
+package main
 
 import (
 	"errors"
@@ -25,7 +25,7 @@ type Settings struct {
 	condition_1   bool
 }
 
-func NewBot(username string, password string, donors []string, settings *Settings) *Bot {
+func NewBot(donors []string, settings *Settings) *Bot {
 	return &Bot{
 		instance: nil,
 		donors:   utils.NewIterableList(donors),
@@ -65,20 +65,23 @@ func (bot *Bot) createSession(username string, password string) {
 }
 
 func (bot *Bot) resetSubPerHourTimeout() {
-	bot.hour_timeout = time.Now().Add(1 * time.Hour)
+	bot.hour_timeout = time.Now().Add(2 * time.Minute)
 	bot.sub_counter = 0
 }
 
 func (bot *Bot) hourlySleep() {
 	hour_interval_duration := time.Duration(bot.settings.hour_interval.Rand()) * time.Second
-	sleep_duration := time.Until(bot.hour_timeout.Add(hour_interval_duration))
+	sleep_duration := time.Until(bot.hour_timeout)
 	time.Sleep(sleep_duration)
+	time.Sleep(hour_interval_duration)
 	bot.resetSubPerHourTimeout()
 }
 
 func (bot *Bot) pageIteration() {
-	for bot.subs.Next() && bot.sub_counter < bot.settings.subs_per_hour {
+	for bot.subs.Next() {
 		time.Sleep(time.Duration(bot.settings.sub_interval.Rand()) * time.Second)
+		log.Println(bot.hour_timeout.Clock())
+		log.Println(time.Now())
 		if bot.hour_timeout.Before(time.Now()) || bot.sub_counter >= bot.settings.subs_per_hour {
 			bot.hourlySleep()
 		}
@@ -98,11 +101,11 @@ func (bot *Bot) pageIteration() {
 			continue
 		}
 
-		// if err := sub.Follow(); err != nil {
-		// 	log.Println("Following profile - FAILED")
-		// 	log.Println(err)
-		// 	continue
-		// }
+		if err := bot.subs.Current(true).Follow(); err != nil {
+			log.Println("Following profile - FAILED")
+			log.Println(err)
+			continue
+		}
 		log.Println("Following profile of ", bot.subs.Current(true).Username, " - SUCCESS")
 		bot.sub_counter++
 	}
