@@ -23,6 +23,7 @@ type Settings struct {
 	sub_interval  *utils.Spread
 	hour_interval *utils.Spread
 	condition_1   bool
+	condition_2   bool
 }
 
 func NewBot(donors []string, settings *Settings) *Bot {
@@ -77,7 +78,7 @@ func (bot *Bot) hourlySleep() {
 	bot.resetSubPerHourTimeout()
 }
 
-func (bot *Bot) pageIteration() {
+func (bot *Bot) pageIteration(iteration func() error) {
 	for bot.subs.Next() {
 		time.Sleep(time.Duration(bot.settings.sub_interval.Rand()) * time.Second)
 		log.Println(bot.hour_timeout.Clock())
@@ -85,41 +86,66 @@ func (bot *Bot) pageIteration() {
 		if bot.hour_timeout.Before(time.Now()) || bot.sub_counter >= bot.settings.subs_per_hour {
 			bot.hourlySleep()
 		}
-		sub_profile, err := bot.subs.Current(true).VisitProfile()
-		if err != nil {
-			log.Println("Profile unavailable", err)
-			continue
-		}
-
-		if sub_profile.Friendship.Following {
-			log.Println("User is already followed")
-			continue
-		}
-
-		if bot.settings.condition_1 && sub_profile.Friendship.FollowedBy {
-			log.Println("User is following core account")
-			continue
-		}
-
-		if err := bot.subs.Current(true).Follow(); err != nil {
-			log.Println("Following profile - FAILED")
+		if err := iteration(); err != nil {
 			log.Println(err)
 			continue
 		}
-		log.Println("Following profile of ", bot.subs.Current(true).Username, " - SUCCESS")
 		bot.sub_counter++
 	}
 }
 
-func (bot *Bot) Start() {
-	bot.resetSubPerHourTimeout()
+func (bot *Bot) subIteration() error {
+	sub_profile, err := bot.subs.Current(true).VisitProfile()
+	if err != nil {
+		return err
+	}
+	if sub_profile.Friendship.Following {
+		return errors.New("user is already followed")
+	}
+	if bot.settings.condition_1 && sub_profile.Friendship.FollowedBy {
+		return errors.New("user is following core account")
+	}
+	if err := bot.subs.Current(true).Follow(); err != nil {
+		return err
+	}
+	log.Println("Following profile of ", bot.subs.Current(true).Username, " - SUCCESS")
+	return nil
+}
 
+func (bot *Bot) cleanIteration() error {
+	profile, err := bot.subs.Current(true).VisitProfile()
+	if err != nil {
+		return err
+	}
+	if !bot.settings.condition_2 || !profile.Friendship.FollowedBy {
+		log.Println("Checking profile of ", bot.subs.Current(true).Username, "- FAIL")
+		err = profile.User.Unfollow()
+		if err == nil {
+			log.Println("Unfollowing profile of ", bot.subs.Current(true).Username, "- SUCCESS")
+		}
+		return err
+	}
+	log.Println("Checking profile of ", bot.subs.Current(true).Username, "- SUCCESS")
+	return nil
+}
+
+func (bot *Bot) StartCleaningMode() {
+	bot.resetSubPerHourTimeout()
+	followers := bot.instance.Account.Following("", goinsta.DefaultOrder)
+	for followers.Next() {
+		bot.subs = utils.NewIterableList[*goinsta.User](followers.Users)
+		bot.pageIteration(bot.cleanIteration)
+	}
+}
+
+func (bot *Bot) StartFollowingMode() {
+	bot.resetSubPerHourTimeout()
 	for bot.donors.Next() {
 		if profile, err := bot.instance.VisitProfile(bot.donors.Current(false)); err == nil {
 			followers := profile.User.Followers("")
 			for followers.Next() {
 				bot.subs = utils.NewIterableList[*goinsta.User](followers.Users)
-				bot.pageIteration()
+				bot.pageIteration(bot.subIteration)
 			}
 		} else {
 			log.Println(err)

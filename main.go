@@ -23,5 +23,5 @@ func main() {
 	}
 	inst := NewBot(conf.Instagram.Donors, settings)
 	inst.Login(conf.Instagram.Username, conf.Instagram.Password)
-	inst.Start()
+	inst.StartFollowingMode()
 }
