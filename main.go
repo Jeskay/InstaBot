@@ -30,35 +30,25 @@ func main() {
 
 	username_value := binding.NewString()
 	password_value := binding.NewString()
-	sub_condition_value := binding.NewBool()
-	unsub_condition_value := binding.NewBool()
 	disable_start_button := binding.NewBool()
 	subs_per_hour_value := binding.NewInt()
 	subs_per_hour_value.Set(10)
 
 	subs_rate_entry := extensions.NewNumericalEntryWithData(binding.IntToString(subs_per_hour_value))
+	mode_check := widgets.NewModeCheck(instagram_mode)
 	spread_entry_1 := widgets.NewSpreadEntry(0, 10)
 	spread_entry_2 := widgets.NewSpreadEntry(0, 10)
 
-	sub_condition_check := widget.NewRadioGroup([]string{"Подписка на всех", "Подписка в ответ"}, func(s string) {
-		sub_condition_value.Set(s == "Подписка в ответ")
-	})
-	unsub_condition_check := widget.NewRadioGroup([]string{"Отписка от всех", "Отписка от неподписавшихся"}, func(s string) {
-		unsub_condition_value.Set(s == "Отписка от неподписавшихся")
-	})
-	bot_mode := widget.NewRadioGroup([]string{"Подписка", "Отписка"}, func(s string) {
+	bot_mode := widget.NewRadioGroup([]string{widgets.SubscribeMode, widgets.UnsubscribeMode}, func(s string) {
 		instagram_mode.Set(s)
 	})
-	bot_mode.SetSelected("Подписка")
+	bot_mode.SetSelected(widgets.SubscribeMode)
 	form_settings := widget.NewForm(
 		widget.NewFormItem("Подписок в час", subs_rate_entry),
 		widget.NewFormItem("Базовый интервал", spread_entry_1.Container),
 		widget.NewFormItem("Часовой интервал", spread_entry_2.Container),
 		widget.NewFormItem("Режим работы", bot_mode),
-		widget.NewFormItem("Условия работы", container.NewVBox(
-			sub_condition_check,
-			unsub_condition_check,
-		)),
+		widget.NewFormItem("Условия работы", mode_check.Container),
 	)
 
 	form_account := widget.NewForm(
@@ -75,10 +65,10 @@ func main() {
 		}
 		var sub_condition bool = false
 		var unsub_condition bool = false
-		if value, err := sub_condition_value.Get(); err == nil {
+		if value, err := mode_check.SubConditionValue.Get(); err == nil {
 			sub_condition = value
 		}
-		if value, err := unsub_condition_value.Get(); err == nil {
+		if value, err := mode_check.UnsubConditionValue.Get(); err == nil {
 			unsub_condition = value
 		}
 		if !spread_entry_1.Spread.IsValid() {
@@ -107,7 +97,7 @@ func main() {
 			}
 			go func() {
 				bot.Login(username, password)
-				if mode == "Подписка" {
+				if mode == widgets.SubscribeMode {
 					time.Sleep(2 * time.Second)
 					bot.StartFollowingMode()
 					disable_start_button.Set(false)
@@ -120,17 +110,6 @@ func main() {
 
 		}
 	})
-	instagram_mode.AddListener(binding.NewDataListener(func() {
-		if value, err := instagram_mode.Get(); err == nil {
-			if value == "Подписка" {
-				sub_condition_check.Enable()
-				unsub_condition_check.Disable()
-			} else {
-				sub_condition_check.Disable()
-				unsub_condition_check.Enable()
-			}
-		}
-	}))
 	disable_start_button.AddListener(binding.NewDataListener(func() {
 		log.Println("Disabled button state changed")
 		if value, err := disable_start_button.Get(); err == nil {
