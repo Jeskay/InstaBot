@@ -34,18 +34,20 @@ func NewBot(donors []string, settings *Settings) *Bot {
 	}
 }
 
-func (bot *Bot) Login(username string, password string) {
-	if err := bot.reloadSession(); err != nil {
+func (bot *Bot) Login(username, password string) {
+	if err := bot.reloadSession(username); err != nil {
 		bot.createSession(username, password)
 	}
 }
 
-func (bot *Bot) reloadSession() error {
+func (bot *Bot) reloadSession(username string) error {
 	inst, err := goinsta.Import("./goinsta-session")
 	if err != nil {
 		return errors.New("could not recover the session")
 	}
-
+	if inst.Account.Username != username {
+		return errors.New("session does not belong to the account")
+	}
 	if inst != nil {
 		bot.instance = inst
 	}
