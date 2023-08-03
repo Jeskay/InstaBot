@@ -66,7 +66,7 @@ func (bot *Bot) createSession(username string, password string) {
 }
 
 func (bot *Bot) resetSubPerHourTimeout() {
-	bot.hour_timeout = time.Now().Add(2 * time.Minute)
+	bot.hour_timeout = time.Now().Add(1 * time.Hour)
 	bot.sub_counter = 0
 }
 
