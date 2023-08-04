@@ -8,7 +8,7 @@ type IterableList[T any] struct {
 func NewIterableList[V any](items []V) *IterableList[V] {
 	return &IterableList[V]{
 		list:    items,
-		current: 0,
+		current: -1,
 	}
 }
 
