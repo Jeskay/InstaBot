@@ -29,7 +29,6 @@ func main() {
 	instagram_mode := binding.NewString()
 
 	username_value := binding.NewString()
-	password_value := binding.NewString()
 	disable_start_button := binding.NewBool()
 	subs_per_hour_value := binding.NewInt()
 	subs_per_hour_value.Set(10)
@@ -50,10 +49,10 @@ func main() {
 		widget.NewFormItem("Режим работы", bot_mode),
 		widget.NewFormItem("Условия работы", mode_check.Container),
 	)
-
+	password_entry := widget.NewPasswordEntry()
 	form_account := widget.NewForm(
 		widget.NewFormItem("Имя пользователя", widget.NewEntryWithData(username_value)),
-		widget.NewFormItem("Пароль", widget.NewEntryWithData(password_value)),
+		widget.NewFormItem("Пароль", password_entry),
 	)
 
 	donors_entry := widget.NewMultiLineEntry()
@@ -88,15 +87,11 @@ func main() {
 		if mode, err := instagram_mode.Get(); err == nil {
 			disable_start_button.Set(true)
 			var username string = ""
-			var password string = ""
 			if value, err := username_value.Get(); err == nil {
 				username = value
 			}
-			if value, err := password_value.Get(); err == nil {
-				password = value
-			}
 			go func() {
-				bot.Login(username, password)
+				bot.Login(username, password_entry.Text)
 				if mode == widgets.SubscribeMode {
 					time.Sleep(2 * time.Second)
 					bot.StartFollowingMode()
